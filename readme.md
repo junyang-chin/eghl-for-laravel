@@ -139,3 +139,6 @@ $validated = Eghl::validatePaymentResponse($eghlResponse);
 ## Acknowledgement
 
 This is a modification of [eghl-laravel](https://github.com/killallskywalker/eghl-laravel) by [killallskywalker](https://github.com/killallskywalker)
+
+## License
+[MIT](https://github.com/junyang-chin/eghl-for-laravel/edit/main/LICENSE.md)
