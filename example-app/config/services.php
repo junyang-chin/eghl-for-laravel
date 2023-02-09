@@ -38,7 +38,7 @@ return [
         "service_id" => env("EGHL_SERVICE_ID"),
         "merchant_return_url" => env("EGHL_MERCHANT_RETURN_URL"),
         "currency_code" => env("EGHL_CURRENCY_CODE", 'MYR'),
-        "merchant_name" => env("EGHL_MERCHANT_NAME", 'ADNEXIO'),
+        "merchant_name" => env("EGHL_MERCHANT_NAME", 'FooBar'),
         "merchant_callback_url" => env("EGHL_MERCHANT_CALLBACK_URL"),
         'language_code' => env('EGHL_LANGUAGE_CODE', 'EN'),
         "page_timeout" => env("EGHL_PAGE_TIMEOUT", 600),
