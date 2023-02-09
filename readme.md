@@ -1,6 +1,6 @@
 # eGHL for Laravel
 
-[eGHL](https://www.ghl.com/e-commerce) is a payment service provider that operates in ASEAN.
+[eGHL](https://www.ghl.com/e-commerce) is a payment service provider that helps you collect online payments from your customers.
 
 **eGhL for Laravel** is an encapsulated module that simplifies your Laravel app interaction with the eGHL's API.
 
@@ -29,9 +29,9 @@ The core implementations of the this module could be found in `app/Modules/Eghl/
 
 5. (Scenario 2b: **MerchantCallbackURL** is provided in the payment request paramters) eGHL server makes another separate request to **MerchantCallbackURL**. e.g. `POST api/eghl/callback`
 
-The is essentially a webhook which does not require a response. The advantage of using this webhook is when the client has poor internet connection / client closes browser halfway. eGHL server could still send the completed transaction data to the backend.
+   The is essentially a webhook which does not require a response. The advantage of using this webhook is when the client has poor internet connection / client closes browser halfway. eGHL server could still send the completed transaction data to the backend.
 
-> Since, the client browser and eGHL server are both making request to the backend. Make sure you do not process your order twice!
+   > Since, the client browser and eGHL server are both making request to the backend. Make sure you do not process your order twice!
 
 6. The three requests above contain a request body which are explained in the eGHL documentation.
 
@@ -139,3 +139,6 @@ $validated = Eghl::validatePaymentResponse($eghlResponse);
 ## Acknowledgement
 
 This is a modification of [eghl-laravel](https://github.com/killallskywalker/eghl-laravel) by [killallskywalker](https://github.com/killallskywalker)
+
+## License
+[MIT](https://github.com/junyang-chin/eghl-for-laravel/blob/main/LICENSE.md)
