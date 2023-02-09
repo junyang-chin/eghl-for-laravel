@@ -1,170 +1,74 @@
 <?php
 
-namespace App\Modules\Eghl;
+namespace Tests\Feature;
 
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\WithFaker;
+use Tests\TestCase;
 
-class Eghl
+
+
+class EghlTest extends TestCase
 {
-    private $password;
-    private $serviceId;
-    private $merchantName;
-    private $serviceUrl;
-    private $merchantReturlUrl;
-    private $merchantCallbackUrl;
-    private $currencyCode;
-    private $transactionType;
-    private $paymentMethod;
-    private $languageCode;
-    private $pageTimeout;
-    private $transactionTypeEnum = ['SALE', 'AUTH', 'CAPTURE', 'QUERY', 'RSALE', 'REFUND', 'SETTLE'];
-    private $paymentMethodEnum = ['CC', 'MO', 'DD', 'WA', 'OTC', 'ANY'];
-    private $languageCodeEnum = ['EN', 'MS', 'TH', 'ZH'];
-    private $currencyCodeEnum = ['MYR', 'SGD', 'THB', 'CNY', 'PHP'];
-
-    public function __construct()
+    protected function fakeEghlResponse()
     {
-        $this->serviceUrl = config('services.eghl.service_url');
-        $this->password = config('services.eghl.password');
-        $this->transactionType = config('services.eghl.transaction_type');
-        $this->paymentMethod = config('services.eghl.payment_method');
-        $this->serviceId = config('services.eghl.service_id');
-        $this->merchantReturlUrl = config('services.eghl.merchant_return_url');
-        $this->currencyCode = config('services.eghl.currency_code');
-        $this->merchantName = config('services.eghl.merchant_name');
-        $this->merchantCallbackUrl = config('services.eghl.merchant_callback_url');
-        $this->languageCode = config('services.eghl.language_code');
-        $this->pageTimeout = config('services.eghl.page_timeout');
-    }
-
-    /**
-     * Get the hashing value
-     *
-     * @param array]
-     *
-     * @return string
-     */
-    public function generateHash(array $value)
-    {
-        // refer eGHL-API-VER2.9q.pdf 2.13.1.1 Payment Request Hashing
-        $param = $this->password . $this->serviceId . $value['PaymentID'] . $this->merchantReturlUrl . $this->merchantCallbackUrl . $value['Amount'] . $this->currencyCode . $this->pageTimeout;
-
-        return hash('sha256', $param);
-    }
-
-    public function generateHttpQuery($data)
-    {
-        // refer eGHL-API-VER2.9q.pdf 2.1 Payment Request (Merchant System → Payment Gateway)
-        $queryParam = [
-            'TransactionType' => $this->transactionType,
-            'PymtMethod' => $this->paymentMethod,
-            'ServiceID' => $this->serviceId,
-            'PaymentID' =>  $data['PaymentID'],
-            'OrderNumber' => $data['OrderNumber'],
-            'PaymentDesc' => $data['PaymentDesc'],
-            'MerchantName' => $this->merchantName,
-            'MerchantReturnURL' => $this->merchantReturlUrl,
-            'Amount' => $data["Amount"],
-            'CurrencyCode' => $this->currencyCode,
-            'CustName' => $data['CustName'],
-            'CustEmail' => $data['CustEmail'],
-            'CustPhone' => $data['CustPhone'],
-            'MerchantCallbackURL' => $this->merchantCallbackUrl,
-            'LanguageCode' => $this->languageCode,
-            'PageTimeout' => $this->pageTimeout,
+        $payload =  [
+            "IssuingBank" => "eGHL Test",
+            "OrderNumber" => "NEX0009012010325810P",
+            "PaymentID" => "NEX0009012010325810P",
+            "PymtMethod" => "CC",
+            "TransactionType" => "SALE",
+            "TxnID" => "AAXNEX0009012010325810P",
+            "TxnMessage" => "Transaction Successful",
+            "TxnStatus" => 0,
+            "Amount" => "100.00",
+            "CurrencyCode" => "MYR",
+            "AuthCode" => "bla",
+            "Param6" => 'ahah',
+            "Param7" => 'foobar',
         ];
 
-        $validated = $this->paymentRequestValidation($queryParam);
+        $hashValue = env('EGHL_PASSWORD') . $payload["TxnID"] . env('EGHL_SERVICE_ID') . $payload["PaymentID"] . $payload["TxnStatus"] . $payload["Amount"] . $payload["CurrencyCode"] . $payload["AuthCode"];
+        $hash = (hash('sha256', $hashValue));
 
-        $validated['HashValue'] = $this->generateHash($validated);
+        $hashValue2 = env('EGHL_PASSWORD') . $payload["TxnID"] . env('EGHL_SERVICE_ID') . $payload["PaymentID"] . $payload["TxnStatus"] . $payload["Amount"] . $payload["CurrencyCode"] . $payload["AuthCode"] . $payload['OrderNumber'] . $payload['Param6'] . $payload['Param7'];
+        $hash2 = (hash('sha256', $hashValue2));
 
-        $httpQuery = http_build_query($validated);
+        $payload["HashValue"] = $hash;
+        $payload["HashValue2"] = $hash2;
 
-        return $httpQuery;
+        return $payload;
     }
 
-    /**
-     * Process eghl payment for payment request
-     *
-     *
-     * @return string url payment page
-     */
-    public function processPaymentRequest($data)
+    public function test_can_make_payment_request()
     {
-        $url = $this->serviceUrl . $this->generateHttpQuery($data);
-
-        return $url;
+        $response = $this->getJson('api/payment');
+        $response->assertStatus(302);
     }
 
-    /**
-     *
-     * Validate payment response
-     *
-     *
-     * @return boolean
-     */
-    public function validatePaymentResponse($data)
+    public function test_eghl_server_can_callback()
     {
-        // refer eGHL-API-VER2.9q.pdf 2.13.1.2 Payment/Query/Reversal/Capture/Refund Response Hashing
-        $string = $this->password . $data["TxnID"] . $this->serviceId . $data["PaymentID"] . $data["TxnStatus"] . $data["Amount"] . $data["CurrencyCode"] . $data["AuthCode"] . $data['OrderNumber'] . $data['Param6'] . $data['Param7'];
+        $payload = $this->fakeEghlResponse();
 
-        $hash = (hash('sha256', $string));
-
-        if ($hash === $data["HashValue2"]) {
-            return true;
-        }
-
-        return false;
+        $response = $this->postJson('api/eghl/callback', $payload);
+        $response->assertStatus(200);
     }
 
-    /**
-     * Validate array value that require to process payment
-     * @param mixed $value 
-     * @return array 
-     */
-    private function paymentRequestValidation($value)
+    public function test_client_browser_can_redirect_to_status_success_page()
     {
-        $validator = Validator::make(
-            $value,
-            [
-                'TransactionType' => [
-                    'required',
-                    Rule::in($this->transactionTypeEnum),
-                ],
-                'PymtMethod' => [
-                    'required',
-                    Rule::in($this->paymentMethodEnum),
-                ],
-                'ServiceID' => 'required|max:20',
-                'PaymentID' => 'required|max:20', // no duplicate payment id
-                'OrderNumber' => 'required|max:20', // Non unique , can be same under payment id
-                'PaymentDesc' => 'required|max:100',
-                'MerchantReturnURL' => 'required',
-                'Amount' => 'required|numeric|gt:0',
-                'CurrencyCode' => [
-                    'required',
-                    Rule::in($this->currencyCodeEnum),
-                ],
-                'CustName' => 'required|max:50',
-                'CustEmail' => 'required|max:60',
-                'CustPhone' => 'required|max:25',
-                'B4TaxAmt' => 'sometimes|numeric|gt:0',
-                'TaxAmt' => 'sometimes|numeric|gt:0',
-                'MerchantName' => 'sometimes|max:25',
-                'MerchantCallbackURL' => 'sometimes',
-                'LanguageCode' => [
-                    'sometimes',
-                    Rule::in($this->languageCodeEnum),
-                ],
-                'PageTimeout' => 'sometimes|numeric|max:900',
-            ]
-        );
+        $payload = $this->fakeEghlResponse();
 
-        if ($validator->fails()) {
-            throw new \ErrorException($validator->errors());
-        }
+        $response = $this->post('api/eghl/redirect', $payload);
+        $response->assertStatus(302)->assertRedirect('https://www.example.com/success');
+    }
 
-        return $validator->validated();
+    public function test_client_browser_can_redirect_to_status__eghl_validate_fail_page()
+    {
+        $payload = $this->fakeEghlResponse();
+        $payload['HashValue'] = 'failhaha';
+        $payload['HashValue2'] = 'failhaha';
+
+        $response = $this->post('api/eghl/redirect', $payload);
+        $response->assertStatus(302)->assertRedirect('https://www.example.com/eghl-validate-fail');
     }
 }

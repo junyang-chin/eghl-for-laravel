@@ -2,8 +2,8 @@
 
 namespace App\Modules\Eghl;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class Eghl
 {
@@ -12,28 +12,29 @@ class Eghl
     private $merchantName;
     private $serviceUrl;
     private $merchantReturlUrl;
-    private $merchantApprovalUrl;
     private $merchantCallbackUrl;
-    private $merchantUnApprovalUrl;
     private $currencyCode;
     private $transactionType;
     private $paymentMethod;
+    private $languageCode;
     private $pageTimeout;
+    private $transactionTypeEnum = ['SALE', 'AUTH', 'CAPTURE', 'QUERY', 'RSALE', 'REFUND', 'SETTLE'];
+    private $paymentMethodEnum = ['CC', 'MO', 'DD', 'WA', 'OTC', 'ANY'];
+    private $languageCodeEnum = ['EN', 'MS', 'TH', 'ZH'];
+    private $currencyCodeEnum = ['MYR', 'SGD', 'THB', 'CNY', 'PHP'];
 
     public function __construct()
     {
-        $this->password = config('services.eghl.password');
-        $this->serviceId = config('services.eghl.service_id');
-        $this->merchantName = config('services.eghl.merchant_name');
         $this->serviceUrl = config('services.eghl.service_url');
-        $this->merchantReturlUrl = config('services.eghl.merchant_return_url');
-        $this->merchantApprovalUrl = config('services.eghl.merchant_approval_url');
-        $this->merchantUnApprovalUrl = config('services.eghl.merchant_unapproval_url');
-        $this->merchantCallbackUrl = config('services.eghl.merchant_callback_url');
-        $this->currencyCode = config('services.eghl.currency_code');
-        $this->pageTimeout = config('services.eghl.page_timeout');
+        $this->password = config('services.eghl.password');
         $this->transactionType = config('services.eghl.transaction_type');
         $this->paymentMethod = config('services.eghl.payment_method');
+        $this->serviceId = config('services.eghl.service_id');
+        $this->merchantReturlUrl = config('services.eghl.merchant_return_url');
+        $this->currencyCode = config('services.eghl.currency_code');
+        $this->merchantName = config('services.eghl.merchant_name');
+        $this->merchantCallbackUrl = config('services.eghl.merchant_callback_url');
+        $this->languageCode = config('services.eghl.language_code');
         $this->pageTimeout = config('services.eghl.page_timeout');
     }
 
@@ -46,8 +47,6 @@ class Eghl
      */
     public function generateHash(array $value)
     {
-        $this->paymentRequestValidation($value);
-
         // refer eGHL-API-VER2.9q.pdf 2.13.1.1 Payment Request Hashing
         $param = $this->password . $this->serviceId . $value['PaymentID'] . $this->merchantReturlUrl . $this->merchantCallbackUrl . $value['Amount'] . $this->currencyCode . $this->pageTimeout;
 
@@ -68,16 +67,19 @@ class Eghl
             'MerchantReturnURL' => $this->merchantReturlUrl,
             'Amount' => $data["Amount"],
             'CurrencyCode' => $this->currencyCode,
-            'HashValue' => $this->generateHash($data),
             'CustName' => $data['CustName'],
             'CustEmail' => $data['CustEmail'],
             'CustPhone' => $data['CustPhone'],
             'MerchantCallbackURL' => $this->merchantCallbackUrl,
-            'LanguageCode' => 'en',
+            'LanguageCode' => $this->languageCode,
             'PageTimeout' => $this->pageTimeout,
         ];
 
-        $httpQuery = http_build_query($queryParam);
+        $validated = $this->paymentRequestValidation($queryParam);
+
+        $validated['HashValue'] = $this->generateHash($validated);
+
+        $httpQuery = http_build_query($validated);
 
         return $httpQuery;
     }
@@ -118,37 +120,51 @@ class Eghl
 
     /**
      * Validate array value that require to process payment
-     *
-     * @param array []
-     *
-     * @return \ErrorException
+     * @param mixed $value 
+     * @return array 
      */
     private function paymentRequestValidation($value)
     {
         $validator = Validator::make(
             $value,
             [
+                'TransactionType' => [
+                    'required',
+                    Rule::in($this->transactionTypeEnum),
+                ],
+                'PymtMethod' => [
+                    'required',
+                    Rule::in($this->paymentMethodEnum),
+                ],
+                'ServiceID' => 'required|max:20',
                 'PaymentID' => 'required|max:20', // no duplicate payment id
                 'OrderNumber' => 'required|max:20', // Non unique , can be same under payment id
                 'PaymentDesc' => 'required|max:100',
+                'MerchantReturnURL' => 'required',
                 'Amount' => 'required|numeric|gt:0',
-                'CustIP' => 'sometimes|max:20',
+                'CurrencyCode' => [
+                    'required',
+                    Rule::in($this->currencyCodeEnum),
+                ],
                 'CustName' => 'required|max:50',
                 'CustEmail' => 'required|max:60',
                 'CustPhone' => 'required|max:25',
                 'B4TaxAmt' => 'sometimes|numeric|gt:0',
                 'TaxAmt' => 'sometimes|numeric|gt:0',
                 'MerchantName' => 'sometimes|max:25',
-                'CustMAC' => 'sometimes|max:50',
-                'LanguageCode' => 'sometimes|max:2',
-                'PageTimeout' => 'sometimes|max:4',
-            ],
-            [
-                "PaymentID.required" => "Payment ID Required!",
+                'MerchantCallbackURL' => 'sometimes',
+                'LanguageCode' => [
+                    'sometimes',
+                    Rule::in($this->languageCodeEnum),
+                ],
+                'PageTimeout' => 'sometimes|numeric|max:900',
             ]
         );
 
-        if ($validator->fails())
-            throw new \ErrorException($validator->errors()->first());
+        if ($validator->fails()) {
+            throw new \ErrorException($validator->errors());
+        }
+
+        return $validator->validated();
     }
 }
