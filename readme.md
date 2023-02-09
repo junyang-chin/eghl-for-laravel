@@ -60,21 +60,17 @@ The core implementations of the this module could be found in `app/Modules/Eghl/
 ```php
 [
    'eghl' => [
-        'merchant_name' => env('EGHL_MERCHANT_NAME'),
-        "password" => env("EGHL_PASSWORD"),
-        "service_id" => env("EGHL_SERVICE_ID"),
         "service_url" => env("EGHL_SERVICE_URL"),
-        "merchant_return_url" => env("MERCHANT_RETURN_URL"),
-        "merchant_approval_url" => env("MERCHANT_APPROVAL_URL"),
-        "merchant_unapproval_url" => env("MERCHANT_UNAPPROVAL_URL"),
-        "merchant_callback_url" => env("MERCHANT_CALLBACK_URL"),
-        "currency_code" => env("CURRENCY_CODE", "MYR"),
-        "page_timeout" => env("PAGE_TIMOUT", 300),
-        "transaction_type" => env("EGHL_TRANSACTION_TYPE", "SALE"),
-        "payment_method" => env("EGHL_PAYMENT_METHOD", "ANY"),
-        'payment_description' => env('EGHL_PAYMENT_DESCRIPTION'),
-        'phone_number' => env('EGHL_PAYER_PHONE_NUMBER'),
-        'payment_status_page_url' => env('EGHL_PAYMENT_STATUS_PAGE_URL'),
+        "password" => env("EGHL_PASSWORD"),
+        "transaction_type" => env("EGHL_TRANSACTION_TYPE", 'SALE'),
+        "payment_method" => env("EGHL_PAYMENT_METHOD", 'ANY'),
+        "service_id" => env("EGHL_SERVICE_ID"),
+        "merchant_return_url" => env("EGHL_MERCHANT_RETURN_URL"),
+        "currency_code" => env("EGHL_CURRENCY_CODE", 'MYR'),
+        "merchant_name" => env("EGHL_MERCHANT_NAME", 'FooBar'),
+        "merchant_callback_url" => env("EGHL_MERCHANT_CALLBACK_URL"),
+        'language_code' => env('EGHL_LANGUAGE_CODE', 'EN'),
+        "page_timeout" => env("EGHL_PAGE_TIMEOUT", 600),
     ],
 ];
 ```
@@ -83,11 +79,17 @@ The core implementations of the this module could be found in `app/Modules/Eghl/
 
 ```
 # eghl
-EGHL_PASSWORD=
-EGHL_SERVICE_ID=
-EGHL_SERVICE_URL=
-MERCHANT_RETURN_URL=
-MERCHANT_CALLBACK_URL=
+EGHL_SERVICE_URL=https://www.example.com
+EGHL_PASSWORD=foobar
+EGHL_TRANSACTION_TYPE=SALE
+EGHL_PAYMENT_METHOD=ANY
+EGHL_SERVICE_ID=foobar1234
+EGHL_MERCHANT_RETURN_URL=https://www.example.com
+EGHL_CURRENCY_CODE=MYR
+EGHL_MERCHANT_NAME=FooBar
+EGHL_MERCHANT_CALLBACK_URL=https://www.example.com
+EGHL_LANGUAGE_CODE=https://www.example.com
+EGHL_PAGE_TIMEOUT=600
 ```
 
 4. Essentially there are only two methods in the Eghl class that you should use i.e.
@@ -141,4 +143,5 @@ $validated = Eghl::validatePaymentResponse($eghlResponse);
 This is a modification of [eghl-laravel](https://github.com/killallskywalker/eghl-laravel) by [killallskywalker](https://github.com/killallskywalker)
 
 ## License
+
 [MIT](https://github.com/junyang-chin/eghl-for-laravel/blob/main/LICENSE.md)
